@@ -2,6 +2,7 @@ import { NgOptimizedImage } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ThemeService, TranslatePipe, TranslateService } from 'wacom';
+import { LanguageCode } from '../../feature/language/language.type';
 import { LanguageOption } from '../../feature/language/language.interface';
 import { LanguageService } from '../../feature/language/language.service';
 
@@ -17,11 +18,17 @@ export class TopbarComponent {
 	private readonly _themeService = inject(ThemeService);
 	private readonly _languageService = inject(LanguageService);
 
+	private readonly _topbarLanguageCodes: readonly LanguageCode[] = ['ua', 'en'];
+
 	protected readonly mode = computed(() => this._themeService.mode() ?? 'light');
 	protected readonly languageMenuOpen = signal(false);
-	protected readonly languages = this._languageService.languages;
+	protected readonly languages = computed(() =>
+		this._languageService.languages().filter((language) =>
+			this._topbarLanguageCodes.includes(language.code),
+		),
+	);
 	protected readonly currentLanguage = computed(() =>
-		this._languageService.getLanguage(this._languageService.language()),
+		this.languages().find((language) => language.code === this._languageService.language()) ?? this.languages()[0]!,
 	);
 	protected readonly toggleIcon = computed(() =>
 		this.mode() === 'dark' ? 'light_mode' : 'dark_mode',
@@ -49,7 +56,14 @@ export class TopbarComponent {
 	}
 
 	protected nextLanguage() {
-		void this._languageService.nextLanguage();
+		const languages = this.languages();
+		const currentCode = this.currentLanguage().code;
+		const currentIndex = languages.findIndex((language) => language.code === currentCode);
+		const nextLanguage = languages[(currentIndex + 1) % languages.length];
+
+		if (nextLanguage) {
+			void this._languageService.setLanguage(nextLanguage.code);
+		}
 		this.languageMenuOpen.set(false);
 	}
 
